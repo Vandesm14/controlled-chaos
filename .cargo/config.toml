@@ -1,0 +1,29 @@
+[alias]
+drun = "run --features bevy/dynamic_linking,bevy/file_watcher"
+dbuild = "build --features bevy/dynamic_linking,bevy/file_watcher"
+dtest = "test --features bevy/dynamic_linking,bevy/file_watcher"
+
+# NOTE: For maximum performance, build using a nightly compiler
+# If you are using rust nightly, add the `"-Z", "share-generics=y"` to the
+# `rustflags` below.
+
+[target.x86_64-unknown-linux-gnu]
+linker = "clang"
+rustflags = ["-C", "link-arg=-fuse-ld=/usr/bin/mold"]
+
+# NOTE: you must manually install https://github.com/michaeleisel/zld on mac.
+# you can easily do this with the "brew" package manager:
+# `brew install michaeleisel/zld/zld`
+[target.x86_64-apple-darwin]
+rustflags = ["-C", "link-arg=-fuse-ld=/usr/local/bin/zld", "-Z", "share-generics=y"]
+
+[target.aarch64-apple-darwin]
+rustflags = ["-C", "link-arg=-fuse-ld=/opt/homebrew/bin/zld", "-Z", "share-generics=y"]
+
+[target.x86_64-pc-windows-msvc]
+linker = "rust-lld.exe"
+rustflags = ["-Z", "share-generics=y"]
+# rustflags = ["-Z", "share-generics=n"]
+
+[target.wasm32-unknown-unknown]
+runner = "wasm-server-runner"
