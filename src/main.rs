@@ -62,7 +62,9 @@ fn apu_system(
   >,
   mut apu_query: Query<&mut APUMaster>,
 ) {
+  tracing::info!("APU interaction");
   for (interaction) in &mut interaction_query {
+    tracing::info!("APU interaction: {:?}", interaction);
     let mut apu_master = apu_query.single_mut();
     if *interaction == Interaction::Pressed {
       apu_master.0 = !apu_master.0;
@@ -75,7 +77,9 @@ fn apu_color(
   apu_query: Query<&APUMaster, Changed<APUMaster>>,
 ) {
   tracing::info!("APU color");
-  let apu_query = apu_query.single();
+  let Ok(apu_query) = apu_query.get_single() else {
+    return;
+  };
   let (mut color, mut border_color) = button_query.into_inner();
   match apu_query.0 {
     true => border_color.0 = Color::linear_rgb(0.0, 0.9, 0.0),
