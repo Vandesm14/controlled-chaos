@@ -11,7 +11,7 @@ fn main() {
     // Only run the app when there is user input. This will significantly reduce CPU/GPU use.
     .insert_resource(WinitSettings::desktop_app())
     .add_systems(Startup, setup)
-    .add_systems(Update, (button_system, apu_system, apu_color))
+    .add_systems(Update, (button_system, apu_system, apu_color).chain())
     .run();
 }
 
@@ -57,43 +57,33 @@ fn button_system(
 
 fn apu_system(
   mut interaction_query: Query<
-    (
-      &Interaction,
-      &mut BackgroundColor,
-      &mut BorderColor,
-      &mut APUMaster,
-    ),
+    &Interaction,
     (Changed<Interaction>, With<Button>),
   >,
+  mut apu_query: Query<&mut APUMaster>,
 ) {
-  for (interaction, mut color, mut border_color, mut apu_master) in
-    &mut interaction_query
-  {
+  for (interaction) in &mut interaction_query {
+    let mut apu_master = apu_query.single_mut();
     if *interaction == Interaction::Pressed {
-      tracing::info!("click button");
-
-      *color = PRESSED_BUTTON.into();
-      border_color.0 = RED.into();
       apu_master.0 = !apu_master.0;
     }
   }
 }
 
 fn apu_color(
-  mut interaction_query: Query<
-    (&mut BackgroundColor, &mut BorderColor, &APUMaster),
-    (Changed<APUMaster>, With<Button>),
-  >,
+  button_query: Single<(&mut BackgroundColor, &mut BorderColor), With<Button>>,
+  apu_query: Query<&APUMaster, Changed<APUMaster>>,
 ) {
-  for (mut color, mut border_color, apu_master) in &mut interaction_query {
-    match apu_master.0 {
-      true => border_color.0 = Color::linear_rgb(0.0, 0.9, 0.0),
-      false => border_color.0 = Color::BLACK,
-    }
+  tracing::info!("APU color");
+  let apu_query = apu_query.single();
+  let (mut color, mut border_color) = button_query.into_inner();
+  match apu_query.0 {
+    true => border_color.0 = Color::linear_rgb(0.0, 0.9, 0.0),
+    false => border_color.0 = Color::BLACK,
   }
 }
 
-fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn setup(mut commands: Commands) {
   // ui camera
   commands.spawn(Camera2d);
   commands
