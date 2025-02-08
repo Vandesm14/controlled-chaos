@@ -1,7 +1,9 @@
 //! This example illustrates how to create a button that changes color and text based on its
 //! interaction state.
 
-use bevy::{color::palettes::basic::*, prelude::*, winit::WinitSettings};
+use bevy::{
+  color::palettes::basic::*, prelude::*, utils::tracing, winit::WinitSettings,
+};
 
 fn main() {
   App::new()
@@ -9,13 +11,16 @@ fn main() {
     // Only run the app when there is user input. This will significantly reduce CPU/GPU use.
     .insert_resource(WinitSettings::desktop_app())
     .add_systems(Startup, setup)
-    .add_systems(Update, button_system)
+    .add_systems(Update, (button_system, apu_system, apu_color))
     .run();
 }
 
 const NORMAL_BUTTON: Color = Color::srgb(0.15, 0.15, 0.15);
 const HOVERED_BUTTON: Color = Color::srgb(0.25, 0.25, 0.25);
 const PRESSED_BUTTON: Color = Color::srgb(0.35, 0.75, 0.35);
+
+#[derive(Debug, Clone, Copy, Component, Hash, Default)]
+struct APUMaster(bool);
 
 fn button_system(
   mut interaction_query: Query<
@@ -35,20 +40,55 @@ fn button_system(
     let mut text = text_query.get_mut(children[0]).unwrap();
     match *interaction {
       Interaction::Pressed => {
-        **text = "Press".to_string();
         *color = PRESSED_BUTTON.into();
         border_color.0 = RED.into();
       }
       Interaction::Hovered => {
-        **text = "Hover".to_string();
         *color = HOVERED_BUTTON.into();
         border_color.0 = Color::WHITE;
       }
       Interaction::None => {
-        **text = "Button".to_string();
         *color = NORMAL_BUTTON.into();
         border_color.0 = Color::BLACK;
       }
+    }
+  }
+}
+
+fn apu_system(
+  mut interaction_query: Query<
+    (
+      &Interaction,
+      &mut BackgroundColor,
+      &mut BorderColor,
+      &mut APUMaster,
+    ),
+    (Changed<Interaction>, With<Button>),
+  >,
+) {
+  for (interaction, mut color, mut border_color, mut apu_master) in
+    &mut interaction_query
+  {
+    if *interaction == Interaction::Pressed {
+      tracing::info!("click button");
+
+      *color = PRESSED_BUTTON.into();
+      border_color.0 = RED.into();
+      apu_master.0 = !apu_master.0;
+    }
+  }
+}
+
+fn apu_color(
+  mut interaction_query: Query<
+    (&mut BackgroundColor, &mut BorderColor, &APUMaster),
+    (Changed<APUMaster>, With<Button>),
+  >,
+) {
+  for (mut color, mut border_color, apu_master) in &mut interaction_query {
+    match apu_master.0 {
+      true => border_color.0 = Color::linear_rgb(0.0, 0.9, 0.0),
+      false => border_color.0 = Color::BLACK,
     }
   }
 }
@@ -57,13 +97,16 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
   // ui camera
   commands.spawn(Camera2d);
   commands
-    .spawn(Node {
-      width: Val::Percent(100.0),
-      height: Val::Percent(100.0),
-      align_items: AlignItems::Center,
-      justify_content: JustifyContent::Center,
-      ..default()
-    })
+    .spawn((
+      Node {
+        width: Val::Percent(100.0),
+        height: Val::Percent(100.0),
+        align_items: AlignItems::Center,
+        justify_content: JustifyContent::Center,
+        ..default()
+      },
+      APUMaster(false),
+    ))
     .with_children(|parent| {
       parent
         .spawn((
@@ -83,7 +126,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
           BackgroundColor(NORMAL_BUTTON),
         ))
         .with_child((
-          Text::new("Button"),
+          Text::new("APU\nMaster"),
           TextFont {
             font_size: 33.0,
             ..default()
